@@ -1,0 +1,31 @@
+﻿@model List<Office365PlannerTask.Models.MyPlan>
+@{
+    ViewBag.Title = "Group Plans";
+}
+
+<h2>Group Files</h2>
+<table class="table table-bordered table-striped">
+    <tr>
+        <th>Id</th>
+        <th>Title</th>
+        <th>Owner</th>
+        <th>Created By</th>
+        <th>Task Count</th>
+
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@Html.DisplayFor(modelItem => item.id)</td>
+            <td>@Html.DisplayFor(modelItem => item.title)</td>
+            <td>@Html.DisplayFor(modelItem => item.owner)</td>
+            <td>@Html.DisplayFor(modelItem => item.createdBy)</td>
+            <td>@Html.DisplayFor(modelItem => item.taskCount)</td>
+
+        </tr>
+    }
+</table>
+<p>
+    @Html.ActionLink("Back to Group Home", "Index")
+</p>
