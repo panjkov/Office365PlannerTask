@@ -3,7 +3,7 @@
     ViewBag.Title = "Group Plans";
 }
 
-<h2>Group Files</h2>
+<h2>Group Plans</h2>
 <table class="table table-bordered table-striped">
     <tr>
         <th>Id</th>
@@ -11,7 +11,7 @@
         <th>Owner</th>
         <th>Created By</th>
         <th>Task Count</th>
-
+        <th>Commands</th>
     </tr>
 
     @foreach (var item in Model)
@@ -22,7 +22,11 @@
             <td>@Html.DisplayFor(modelItem => item.owner)</td>
             <td>@Html.DisplayFor(modelItem => item.createdBy)</td>
             <td>@Html.DisplayFor(modelItem => item.taskCount)</td>
-
+            <td>
+                @Html.ActionLink("Details", "../Plan/Details", new { id = item.id }) |
+                @Html.ActionLink("Update", "../Plan/Update", new { id = item.id }) |
+                @Html.ActionLink("Tasks", "../Task/Index", new { planid = item.id })
+            </td>
         </tr>
     }
 </table>

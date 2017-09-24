@@ -14,11 +14,32 @@ using System.Text;
 using System.Collections.Generic;
 using System;
 using System.Net;
+using System.Configuration;
+using Microsoft.Graph;
 
 namespace Office365PlannerTask.Models
 {
     public class MyPlansRepository
-    {        
+    {
+        public static string GraphResourceUrl = "https://graph.microsoft.com/V1.0";
+        public static string TenantId = ConfigurationManager.AppSettings["ida:TenantId"];
+
+        public static async Task<GraphServiceClient> GetGraphServiceAsync()
+        {
+            var accessToken = await GraphAuthHelper.GetGraphAccessTokenAsync();
+            var graphserviceClient = new GraphServiceClient(GraphResourceUrl,
+                                          new DelegateAuthenticationProvider(
+                                                        (requestMessage) =>
+                                                        {
+                                                            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("bearer", accessToken);
+                                                            return Task.FromResult(0);
+                                                        }));
+
+            return graphserviceClient;
+        }
+
+
+
         public async Task<List<MyPlan>> GetPlansREST()
         {
             var plansResult = new List<MyPlan>();
@@ -62,49 +83,38 @@ namespace Office365PlannerTask.Models
             return plansResult;
         }
 
-        //public async Task<List<MyPlan>> GetPlansSDK()
-        //{
-        //    var plansResult = new List<MyPlan>();
-        //    var graphServiceClient = await GroupRepository.GetGraphServiceAsync();
-        //    var accessToken = await GetGraphAccessTokenAsync();
-        //    var restURL = string.Format("{0}me/plans/", SettingsHelper.GraphResourceUrl);
-        //    try
-        //    {
-        //        using (HttpClient client = new HttpClient())
-        //        {
-        //            var accept = "application/json";
+        public async Task<List<MyPlan>> GetPlansSDK()
+        {
+            var plansResult = new List<MyPlan>();
+            
+            try
+            {
+                var graphServiceClient = await GetGraphServiceAsync();
+                var plans = await graphServiceClient.Me.Planner.Plans.Request().GetAsync();
 
-        //            client.DefaultRequestHeaders.Add("Accept", accept);
-        //            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        //            using (var response = await client.GetAsync(restURL))
-        //            {
-        //                if (response.IsSuccessStatusCode)
-        //                {
-        //                    var jsonresult = JObject.Parse(await response.Content.ReadAsStringAsync());
+                foreach (var item in plans)
+                            {
+                    plansResult.Add(new MyPlan
+                    {
+                        id = item.Id,
+                        title = item.Title,
+                        owner = item.Owner,
+                        createdBy = item.CreatedBy.User.DisplayName,
+                        Etag = item.GetEtag().ToString()
+                                });
+                            }
+                        
+                    
+                
+            }
+            catch (Exception el)
+            {
+                el.ToString();
+            }
 
-        //                    foreach (var item in jsonresult["value"])
-        //                    {
-        //                        plansResult.Add(new MyPlan
-        //                        {
-        //                            id = item["id"].ToString(),
-        //                            title = item["title"].ToString(),
-        //                            owner = !string.IsNullOrEmpty(item["owner"].ToString()) ? item["owner"].ToString() : "",
-        //                            createdBy = !string.IsNullOrEmpty(item["createdBy"].ToString()) ? item["createdBy"].ToString() : "",
-        //                            Etag = !string.IsNullOrEmpty(item["@odata.etag"].ToString()) ? item["@odata.etag"].ToString() : ""
-        //                        });
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //    catch (Exception el)
-        //    {
-        //        el.ToString();
-        //    }
-
-        //    return plansResult;
-        //}
+            return plansResult;
+        }
 
 
         public async Task<MyPlan> GetPlan(string id)

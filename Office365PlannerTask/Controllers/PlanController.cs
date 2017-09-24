@@ -17,7 +17,7 @@ namespace Office365PlannerTask.Controllers
         {
             List<MyPlan> plans = null;
             plans = await _repo.GetPlansREST();
-
+            //plans = await _repo.GetPlansSDK();
             return View(plans);
         }
 
