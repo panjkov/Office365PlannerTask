@@ -23,6 +23,7 @@ namespace Office365PlannerTask.Models
     {
         public static string GraphResourceUrl = "https://graph.microsoft.com/V1.0";
         public static string TenantId = ConfigurationManager.AppSettings["ida:TenantId"];
+        public static bool UseSDK = Convert.ToBoolean(ConfigurationManager.AppSettings["UseSDK"]);
 
         public static async Task<GraphServiceClient> GetGraphServiceAsync()
         {
@@ -38,7 +39,18 @@ namespace Office365PlannerTask.Models
             return graphserviceClient;
         }
 
+        public async Task<List<MyPlan>> GetPlans()
+        {
+            if (UseSDK)
+            {
+                return await GetPlansSDK();
+            }
+            else
+            {
+                return await GetPlansREST();
+            }
 
+        }
 
         public async Task<List<MyPlan>> GetPlansREST()
         {
@@ -86,7 +98,7 @@ namespace Office365PlannerTask.Models
         public async Task<List<MyPlan>> GetPlansSDK()
         {
             var plansResult = new List<MyPlan>();
-            
+
             try
             {
                 var graphServiceClient = await GetGraphServiceAsync();
@@ -94,7 +106,7 @@ namespace Office365PlannerTask.Models
 
 
                 foreach (var item in plans)
-                            {
+                {
                     plansResult.Add(new MyPlan
                     {
                         id = item.Id,
@@ -102,11 +114,11 @@ namespace Office365PlannerTask.Models
                         owner = item.Owner,
                         createdBy = item.CreatedBy.User.DisplayName,
                         Etag = item.GetEtag().ToString()
-                                });
-                            }
-                        
-                    
-                
+                    });
+                }
+
+
+
             }
             catch (Exception el)
             {
@@ -116,8 +128,20 @@ namespace Office365PlannerTask.Models
             return plansResult;
         }
 
-
         public async Task<MyPlan> GetPlan(string id)
+        {
+            if (UseSDK)
+            {
+                return await GetPlanSDK(id);
+            }
+            else
+            {
+                return await GetPlanREST(id);
+            }
+        }
+
+
+        public async Task<MyPlan> GetPlanREST(string id)
         {
             MyPlan plan = new MyPlan();
             var accessToken = await GraphAuthHelper.GetGraphAccessTokenAsync();
@@ -154,12 +178,48 @@ namespace Office365PlannerTask.Models
             return plan;
         }
 
+        public async Task<MyPlan> GetPlanSDK(string id)
+        {
+            MyPlan plan = new MyPlan();
+            var graphServiceClient = await GetGraphServiceAsync();
+            var reqPlan = await graphServiceClient.Planner.Plans[id].Request().GetAsync();
+
+            try
+            {
+
+                if (reqPlan != null)
+                {
+                    plan.title = reqPlan.Title;
+                    plan.Etag = reqPlan.GetEtag();
+                }
+
+            }
+            catch (Exception el)
+            {
+                el.ToString();
+            }
+
+            return plan;
+        }
+
         public async Task CreatePlan(MyPlan myPlan)
+        {
+            if (UseSDK)
+            {
+                 await CreatePlanSDK(myPlan);
+            }
+            else
+            {
+                 await CreatePlanREST(myPlan);
+            }
+        }
+
+        public async Task CreatePlanSDK(MyPlan myPlan)
         {
             try
             {
-                string groupId = await CreateGroup(myPlan.title);
-                await CreatePlan(myPlan, groupId);
+                string groupId = await CreateGroupSDK(myPlan.title);
+                await CreatePlanREST(myPlan, groupId);
             }
             catch (Exception el)
             {
@@ -167,7 +227,54 @@ namespace Office365PlannerTask.Models
             }
         }
 
-        private async Task<string> CreateGroup(string groupTitle)
+        public async Task CreatePlanREST(MyPlan myPlan)
+        {
+            try
+            {
+                string groupId = await CreateGroupREST(myPlan.title);
+                await CreatePlanREST(myPlan, groupId);
+            }
+            catch (Exception el)
+            {
+                el.ToString();
+            }
+        }
+
+        private async Task<string> CreateGroupSDK(string groupTitle)
+        {
+            var graphServiceClient = await GetGraphServiceAsync();
+            string groupId = string.Empty;
+            var newGroup = new Group
+            {
+                DisplayName = groupTitle,
+                MailNickname = groupTitle.Replace(" ", ""),
+                SecurityEnabled = false,
+                MailEnabled = true,
+                GroupTypes = new List<string>() { "Unified" }
+            };
+
+            try
+            {
+                var createdGroup = await graphServiceClient.Groups.Request().AddAsync(newGroup);
+
+                var me = await graphServiceClient.Me.Request().GetAsync();
+
+                await graphServiceClient.Groups[createdGroup.Id].Members.References.Request().AddAsync(me);
+
+                groupId = createdGroup.Id;
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+            
+            return groupId;
+        }
+
+        private async Task<string> CreateGroupREST(string groupTitle)
         {
             var accessToken = await GraphAuthHelper.GetGraphAccessTokenAsync();
             string groupId = string.Empty;
@@ -229,7 +336,7 @@ namespace Office365PlannerTask.Models
             }
         }
 
-        private async Task CreatePlan(MyPlan myPlan, string groupId)
+        private async Task CreatePlanREST(MyPlan myPlan, string groupId)
         {
             var accessToken = await GraphAuthHelper.GetGraphAccessTokenAsync();
             var restURL = string.Format("{0}planner/plans/", SettingsHelper.GraphResourceUrl);
@@ -260,7 +367,44 @@ namespace Office365PlannerTask.Models
                 el.ToString();
             }
         }
+
         public async Task UpdatePlan(MyPlan myPlan)
+        {
+            if (UseSDK)
+            {
+                await UpdatePlanSDK(myPlan);
+            }
+            else
+            {
+                await UpdatePlanREST(myPlan);
+            }
+        }
+
+        public async Task UpdatePlanSDK(MyPlan myPlan)
+        {
+            
+            try
+            {
+                var graphServiceClient = await GetGraphServiceAsync();
+                var reqPlan = await graphServiceClient.Planner.Plans[myPlan.id].Request().GetAsync();
+
+                string etag = reqPlan.GetEtag();
+                var plan = new PlannerPlan
+                {
+                    Title = myPlan.title
+                };
+                //reqPlan.Owner = myPlan.owner;
+
+                await graphServiceClient.Planner.Plans[reqPlan.Id].Request().Header("If-Match", etag).Header("Prefer", "return=representation").UpdateAsync(plan);
+
+            }
+            catch (Exception el)
+            {
+                el.ToString();
+            }
+        }
+
+        public async Task UpdatePlanREST(MyPlan myPlan)
         {
             var accessToken = await GraphAuthHelper.GetGraphAccessTokenAsync();
             var restURL = string.Format("{0}planner/plans/{1}", SettingsHelper.GraphResourceUrl, myPlan.id);

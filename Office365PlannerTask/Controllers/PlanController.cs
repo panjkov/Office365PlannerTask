@@ -16,7 +16,7 @@ namespace Office365PlannerTask.Controllers
         public async Task<ActionResult> Index()
         {
             List<MyPlan> plans = null;
-            plans = await _repo.GetPlansREST();
+            plans = await _repo.GetPlans();
             //plans = await _repo.GetPlansSDK();
             return View(plans);
         }
