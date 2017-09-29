@@ -11,6 +11,8 @@ namespace Office365PlannerTask.Utils
 {
     public class GraphAuthHelper
     {
+
+
         public static async Task<string> GetGraphAccessTokenAsync()
         {
             var signInUserId = ClaimsPrincipal.Current.FindFirst(ClaimTypes.NameIdentifier).Value;

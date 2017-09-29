@@ -219,7 +219,29 @@ namespace Office365PlannerTask.Models
             try
             {
                 string groupId = await CreateGroupSDK(myPlan.title);
-                await CreatePlanREST(myPlan, groupId);
+                await CreatePlanSDK(myPlan, groupId);
+            }
+            catch (Exception el)
+            {
+                el.ToString();
+            }
+        }
+
+        private async Task CreatePlanSDK(MyPlan myPlan, string groupId)
+        {
+            try
+            {
+                var graphServiceClient = await GetGraphServiceAsync();
+
+                var planToCreate = new PlannerPlan
+                {
+                    Title = myPlan.title,
+                    Owner = groupId
+                };
+                //reqPlan.Owner = myPlan.owner;
+
+                await graphServiceClient.Planner.Plans.Request().AddAsync(planToCreate);
+
             }
             catch (Exception el)
             {
